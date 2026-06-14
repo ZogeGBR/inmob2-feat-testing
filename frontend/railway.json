@@ -3,6 +3,6 @@
     "buildCommand": "npm install --legacy-peer-deps && npm run build"
   },
   "deploy": {
-    "startCommand": "npx serve dist -p $PORT"
+    "startCommand": "npx serve -s dist -l $PORT"
   }
 }
