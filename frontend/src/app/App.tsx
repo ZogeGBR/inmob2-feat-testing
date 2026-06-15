@@ -14,7 +14,7 @@ export default function App() {
       domain={domain}
       clientId={clientId}
       authorizationParams={{
-        redirect_uri: window.location.origin, // Esto detecta si estás en Railway o Local de forma automática
+        redirectUri: window.location.origin, // ¡Corregido aquí! Sin guion bajo y con U mayúscula
         audience: audience,
       }}
     >
