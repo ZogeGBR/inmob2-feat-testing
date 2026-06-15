@@ -14,7 +14,7 @@ export default function App() {
       domain={domain}
       clientId={clientId}
       authorizationParams={{
-        redirectUri: window.location.origin, // ¡Corregido aquí! Sin guion bajo y con U mayúscula
+        redirect_uri: window.location.origin,
         audience: audience,
       }}
     >
