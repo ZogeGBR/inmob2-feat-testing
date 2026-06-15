@@ -5,9 +5,9 @@ import { router } from "./routes";
 import { theme } from "./theme";
 
 export default function App() {
-  const domain = import.meta.env.VITE_AUTH0_DOMAIN || "YOUR_DOMAIN";
-  const clientId = import.meta.env.VITE_AUTH0_CLIENT_ID || "YOUR_CLIENT_ID";
-  const audience = import.meta.env.VITE_AUTH0_AUDIENCE || "https://api.inmobiliaria.com";
+  const domain = import.meta.env.VITE_AUTH0_DOMAIN || "dev-clfi6t361gyrqlsw.us.auth0.com";
+  const clientId = import.meta.env.VITE_AUTH0_CLIENT_ID || "wsZI4UzWjp8bc5bjxt3C7RnDbzZGXstu";
+  const audience = import.meta.env.VITE_AUTH0_AUDIENCE || "https://inmob2-api";
 
   return (
     <Auth0Provider
