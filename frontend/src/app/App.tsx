@@ -14,10 +14,7 @@ export default function App() {
       domain={domain}
       clientId={clientId}
       authorizationParams={{
-        // Si falla en Railway, probamos redirigiendo al localhost permitido por el equipo
-        redirect_uri: window.location.origin.includes('railway.app') 
-          ? "http://localhost:5173" 
-          : window.location.origin,
+        redirect_uri: window.location.origin, // Esto detecta si estás en Railway o Local de forma automática
         audience: audience,
       }}
     >
