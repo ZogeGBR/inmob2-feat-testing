@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 
 @RestController
 @RequestMapping("/api/v1/indices")
-@CrossOrigin(origins = "http://localhost:5173") // Ajustar si el puerto de Vite es otro
+@CrossOrigin(origins = {"http://localhost:5173", "https://frontend-production-d5c35.up.railway.app"})
 public class IndiceController {
 
     private final IndiceService indiceService;
