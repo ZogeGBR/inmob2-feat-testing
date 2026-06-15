@@ -1,3 +1,5 @@
+type FetchFn = (endpoint: string, options?: RequestInit) => Promise<Response>;
+
 export interface ArglyIndiceDTO {
   fecha: string;
   valor: number;
@@ -10,18 +12,9 @@ export interface IndicesConsolidadosDTO {
   errorApi: boolean;
 }
 
-export interface IndiceDTO {
-  id?: number;
-  fecha: string;
-  valor: number;
-  tipo: string;
-}
-
-const API_INDICES_URL = 'http://localhost:8080/api/v1/indices';
-
-export const getIndicesConsolidados = async (): Promise<IndicesConsolidadosDTO | null> => {
+export const getIndicesConsolidados = async (fetchWithToken: FetchFn): Promise<IndicesConsolidadosDTO | null> => {
   try {
-    const response = await fetch(API_INDICES_URL);
+    const response = await fetchWithToken('/indices');
     if (!response.ok) {
       throw new Error(`Error HTTP: ${response.status}`);
     }
@@ -30,20 +23,4 @@ export const getIndicesConsolidados = async (): Promise<IndicesConsolidadosDTO |
     console.error('Error al obtener índices consolidados:', error);
     return null;
   }
-};
-
-export const getIndices = async (): Promise<IndiceDTO[]> => {
-  const response = await fetch(`${API_INDICES_URL}/lista`);
-  if (!response.ok) {
-    throw new Error(`Error HTTP: ${response.status}`);
-  }
-  return await response.json();
-};
-
-export const getUltimosIndices = async (): Promise<IndiceDTO> => {
-  const response = await fetch(`${API_INDICES_URL}/ultimo`);
-  if (!response.ok) {
-    throw new Error(`Error HTTP: ${response.status}`);
-  }
-  return await response.json();
 };
