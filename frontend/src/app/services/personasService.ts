@@ -1,11 +1,11 @@
 export interface Telefono {
   numero: string;
-  tipo: 'CELULAR' | 'FIJO' | 'TRABAJO';
+  tipo: 'celular' | 'fijo' | 'trabajo';
 }
 
 export interface Mail {
   email: string;
-  tipo: 'PERSONAL' | 'LABORAL';
+  tipo: 'personal' | 'laboral';
   esPrincipal: boolean;
 }
 
@@ -18,7 +18,7 @@ export interface Direccion {
   localidad: string;
   provincia: string;
   codigoPostal?: string;
-  tipoDomicilio: 'LEGAL' | 'PARTICULAR' | 'COMERCIAL';
+  tipoDomicilio: 'legal' | 'particular' | 'comercial';
 }
 
 export interface PersonaFisica {
@@ -27,7 +27,7 @@ export interface PersonaFisica {
   segundoNombre?: string;
   primerApellido: string;
   segundoApellido?: string;
-  tipoDocumento: 'DNI' | 'CUIT' | 'CUIL' | 'PASAPORTE';
+  tipoDocumento: 'dni' | 'cuit' | 'cuil' | 'pasaporte';
   numDocumento: string;
   fechaNacimiento: string;
   telefonos: Telefono[];
@@ -46,6 +46,9 @@ export interface PersonaJuridica {
   direcciones: Direccion[];
 }
 
+
+
+// Tipos para roles
 export interface InquilinoDTO {
   ocupacionPrincipal?: string;
   ingresosMensuales?: number;
@@ -63,24 +66,28 @@ export interface PropietarioDTO {
   observacionesPrivadas?: string;
 }
 
-type FetchFn = (endpoint: string, options?: RequestInit) => Promise<Response>;
-
-export const getPersonasFisicas = async (fetchWithToken: FetchFn, rol?: string): Promise<PersonaFisica[]> => {
+export const getPersonasFisicas = async (fetchWithToken: (endpoint: string, options?: RequestInit) => Promise<Response>, rol?: string): Promise<PersonaFisica[]> => {
   try {
     const endpoint = rol ? `/personas-fisicas?rol=${rol}` : '/personas-fisicas';
     const response = await fetchWithToken(endpoint);
-    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
-    return await response.json();
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
+    const result = await response.json();
+    return Array.isArray(result) ? result : (result?.data || []);
   } catch (error) {
     console.error('Error al obtener personas físicas:', error);
     return [];
   }
 };
 
-export const createPersonaFisica = async (fetchWithToken: FetchFn, persona: PersonaFisica): Promise<PersonaFisica | null> => {
+export const createPersonaFisica = async (fetchWithToken: (endpoint: string, options?: RequestInit) => Promise<Response>, persona: PersonaFisica): Promise<PersonaFisica | null> => {
   try {
     const response = await fetchWithToken('/personas-fisicas', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(persona),
     });
     if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
@@ -91,7 +98,8 @@ export const createPersonaFisica = async (fetchWithToken: FetchFn, persona: Pers
   }
 };
 
-export const getPersonaFisicaByDni = async (fetchWithToken: FetchFn, dni: string): Promise<PersonaFisica | null> => {
+
+export const getPersonaFisicaByDni = async (fetchWithToken: (endpoint: string, options?: RequestInit) => Promise<Response>, dni: string): Promise<PersonaFisica | null> => {
   try {
     const response = await fetchWithToken(`/personas-fisicas/${dni}`);
     if (!response.ok) {
@@ -105,10 +113,13 @@ export const getPersonaFisicaByDni = async (fetchWithToken: FetchFn, dni: string
   }
 };
 
-export const updatePersonaFisica = async (fetchWithToken: FetchFn, id: number | string, persona: PersonaFisica): Promise<PersonaFisica | null> => {
+export const updatePersonaFisica = async (fetchWithToken: (endpoint: string, options?: RequestInit) => Promise<Response>, id: number | string, persona: PersonaFisica): Promise<PersonaFisica | null> => {
   try {
     const response = await fetchWithToken(`/personas-fisicas/${id}`, {
       method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(persona),
     });
     if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
@@ -119,10 +130,15 @@ export const updatePersonaFisica = async (fetchWithToken: FetchFn, id: number | 
   }
 };
 
-export const deletePersonaFisica = async (fetchWithToken: FetchFn, id: number | string): Promise<boolean> => {
+export const deletePersonaFisica = async (fetchWithToken: (endpoint: string, options?: RequestInit) => Promise<Response>, id: number | string): Promise<boolean> => {
   try {
-    const response = await fetchWithToken(`/personas-fisicas/${id}`, { method: 'DELETE' });
-    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    const response = await fetchWithToken(`/personas-fisicas/${id}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
     return true;
   } catch (error) {
     console.error(`Error al eliminar persona física con ID ${id}:`, error);
@@ -130,22 +146,30 @@ export const deletePersonaFisica = async (fetchWithToken: FetchFn, id: number | 
   }
 };
 
-export const getPersonasJuridicas = async (fetchWithToken: FetchFn, rol?: string): Promise<PersonaJuridica[]> => {
+// Personas Jurídicas
+
+export const getPersonasJuridicas = async (fetchWithToken: (endpoint: string, options?: RequestInit) => Promise<Response>, rol?: string): Promise<PersonaJuridica[]> => {
   try {
     const endpoint = rol ? `/personas-juridicas?rol=${rol}` : '/personas-juridicas';
     const response = await fetchWithToken(endpoint);
-    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
-    return await response.json();
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
+    const result = await response.json();
+    return Array.isArray(result) ? result : (result?.data || []);
   } catch (error) {
     console.error('Error al obtener personas jurídicas:', error);
     return [];
   }
 };
 
-export const createPersonaJuridica = async (fetchWithToken: FetchFn, persona: PersonaJuridica): Promise<PersonaJuridica | null> => {
+export const createPersonaJuridica = async (fetchWithToken: (endpoint: string, options?: RequestInit) => Promise<Response>, persona: PersonaJuridica): Promise<PersonaJuridica | null> => {
   try {
     const response = await fetchWithToken('/personas-juridicas', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(persona),
     });
     if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
@@ -156,7 +180,7 @@ export const createPersonaJuridica = async (fetchWithToken: FetchFn, persona: Pe
   }
 };
 
-export const getPersonaJuridicaByCuit = async (fetchWithToken: FetchFn, cuit: string): Promise<PersonaJuridica | null> => {
+export const getPersonaJuridicaByCuit = async (fetchWithToken: (endpoint: string, options?: RequestInit) => Promise<Response>, cuit: string): Promise<PersonaJuridica | null> => {
   try {
     const response = await fetchWithToken(`/personas-juridicas/cuit/${cuit}`);
     if (!response.ok) {
@@ -170,10 +194,13 @@ export const getPersonaJuridicaByCuit = async (fetchWithToken: FetchFn, cuit: st
   }
 };
 
-export const updatePersonaJuridica = async (fetchWithToken: FetchFn, id: number | string, persona: PersonaJuridica): Promise<PersonaJuridica | null> => {
+export const updatePersonaJuridica = async (fetchWithToken: (endpoint: string, options?: RequestInit) => Promise<Response>, id: number | string, persona: PersonaJuridica): Promise<PersonaJuridica | null> => {
   try {
     const response = await fetchWithToken(`/personas-juridicas/${id}`, {
       method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(persona),
     });
     if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
@@ -184,10 +211,15 @@ export const updatePersonaJuridica = async (fetchWithToken: FetchFn, id: number 
   }
 };
 
-export const deletePersonaJuridica = async (fetchWithToken: FetchFn, id: number | string): Promise<boolean> => {
+export const deletePersonaJuridica = async (fetchWithToken: (endpoint: string, options?: RequestInit) => Promise<Response>, id: number | string): Promise<boolean> => {
   try {
-    const response = await fetchWithToken(`/personas-juridicas/${id}`, { method: 'DELETE' });
-    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    const response = await fetchWithToken(`/personas-juridicas/${id}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
     return true;
   } catch (error) {
     console.error(`Error al eliminar persona jurídica con ID ${id}:`, error);
@@ -195,13 +227,20 @@ export const deletePersonaJuridica = async (fetchWithToken: FetchFn, id: number 
   }
 };
 
-export const asignarRolInquilino = async (fetchWithToken: FetchFn, personaId: number, inquilinoData: InquilinoDTO): Promise<any> => {
+// Funciones para asignar roles
+export const asignarRolInquilino = async (fetchWithToken: (endpoint: string, options?: RequestInit) => Promise<Response>, personaId: number, inquilinoData: InquilinoDTO): Promise<any> => {
   try {
     const response = await fetchWithToken(`/personas/${personaId}/roles/inquilino`, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(inquilinoData),
     });
-    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
     return await response.json();
   } catch (error) {
     console.error('Error al asignar rol de inquilino:', error);
@@ -209,13 +248,19 @@ export const asignarRolInquilino = async (fetchWithToken: FetchFn, personaId: nu
   }
 };
 
-export const asignarRolPropietario = async (fetchWithToken: FetchFn, personaId: number, propietarioData: PropietarioDTO): Promise<any> => {
+export const asignarRolPropietario = async (fetchWithToken: (endpoint: string, options?: RequestInit) => Promise<Response>, personaId: number, propietarioData: PropietarioDTO): Promise<any> => {
   try {
     const response = await fetchWithToken(`/personas/${personaId}/roles/propietario`, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(propietarioData),
     });
-    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
     return await response.json();
   } catch (error) {
     console.error('Error al asignar rol de propietario:', error);
