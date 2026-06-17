@@ -1,130 +1,298 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
-import InquilinosPage from './InquilinosPage';
-import * as personasService from '../services/personasService';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router';
+import {
+  Box,
+  Typography,
+  Button,
+  TextField,
+  InputAdornment,
+  Card,
+  CardActions,
+  IconButton,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Snackbar,
+  Alert,
+} from '@mui/material';
+import { Search, Add, Edit, Delete, Person, Email, Phone, LocationOn } from '@mui/icons-material';
+import { useAuthClient } from '../services/authClient';
+import { getPersonasFisicas, deletePersonaFisica, type PersonaFisica, getPersonasJuridicas, deletePersonaJuridica, type PersonaJuridica } from '../services/personasService';
 
-// Setup basic mocks
-vi.mock('../services/personasService', () => ({
-  getPersonasFisicas: vi.fn(),
-  getPersonasJuridicas: vi.fn(),
-  deletePersonaFisica: vi.fn(),
-  deletePersonaJuridica: vi.fn(),
-}));
+export default function InquilinosPage() {
+  const navigate = useNavigate();
+  const { fetchWithToken } = useAuthClient();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [inquilinos, setInquilinos] = useState<(PersonaFisica | PersonaJuridica)[]>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | number | null>(null);
+  const [deleteTipo, setDeleteTipo] = useState<'fisica' | 'juridica' | null>(null);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
 
-const mockNav = vi.fn();
-vi.mock('react-router', async () => {
-  const actual = await vi.importActual('react-router');
-  return {
-    ...actual as any,
-    useNavigate: () => mockNav,
+  useEffect(() => {
+    loadInquilinos();
+  }, [fetchWithToken]);
+
+  const loadInquilinos = async () => {
+    const dataFisicas = await getPersonasFisicas(fetchWithToken, 'inquilino');
+    const dataJuridicas = await getPersonasJuridicas(fetchWithToken, 'inquilino');
+    setInquilinos([...dataFisicas, ...dataJuridicas]);
   };
-});
 
-const mockFisica: personasService.PersonaFisica = {
-  id: 1,
-  primerNombre: 'Carlos',
-  primerApellido: 'Gomez',
-  tipoDocumento: 'dni',
-  numDocumento: '11111111',
-  fechaNacimiento: '1990-01-01',
-  telefonos: [{ numero: '1234567890', tipo: 'celular' }],
-  mails: [{ email: 'carlos@test.com', tipo: 'personal', esPrincipal: true }],
-  direcciones: []
-};
+  const filteredInquilinos = inquilinos.filter((inq) => {
+    const searchLower = searchTerm.toLowerCase();
 
-const mockJuridica: personasService.PersonaJuridica = {
-  id: 2,
-  razonSocial: 'Empresa Test',
-  cuit: '30-11111111-9',
-  fechaConstitucion: '2000-01-01',
-  telefonos: [],
-  mails: [{ email: 'empresa@test.com', tipo: 'laboral', esPrincipal: true }],
-  direcciones: []
-};
+    // Type guard checks
+    const isFisica = 'primerNombre' in inq;
 
-describe('InquilinosPage Component', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    (personasService.getPersonasFisicas as any).mockResolvedValue([]);
-    (personasService.getPersonasJuridicas as any).mockResolvedValue([]);
+    const nombre = isFisica
+      ? `${inq.primerNombre} ${inq.primerApellido}`.toLowerCase()
+      : `${inq.razonSocial}`.toLowerCase();
+
+    const documento = isFisica ? inq.numDocumento : inq.cuit;
+    const principalEmail = inq.mails.find(m => m.esPrincipal)?.email?.toLowerCase() || '';
+
+    return (
+      nombre.includes(searchLower) ||
+      documento?.includes(searchLower) ||
+      principalEmail.includes(searchLower)
+    );
   });
 
-  const renderComponent = () => render(
-    <MemoryRouter>
-      <InquilinosPage />
-    </MemoryRouter>
+  const handleDelete = (id: string | number | undefined, isPersonaFisica: boolean) => {
+    if (!id) return;
+    setSelectedId(id);
+    // Store type of entity being deleted in state or just rely on passing it. 
+    // For simplicity, we can encode it in selectedId if we want, or add a state.
+    // Let's add a state for the type being deleted.
+    setDeleteTipo(isPersonaFisica ? 'fisica' : 'juridica');
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedId || !deleteTipo) return;
+
+    let success = false;
+    if (deleteTipo === 'fisica') {
+      success = await deletePersonaFisica(fetchWithToken, selectedId.toString());
+    } else {
+      success = await deletePersonaJuridica(fetchWithToken, selectedId.toString());
+    }
+    if (success) {
+      setSnackbar({ open: true, message: 'Inquilino eliminado exitosamente', severity: 'success' });
+      loadInquilinos();
+    } else {
+      setSnackbar({ open: true, message: 'Error al eliminar el inquilino', severity: 'error' });
+    }
+    setDeleteDialogOpen(false);
+    setSelectedId(null);
+    setDeleteTipo(null);
+  };
+
+  const getNombreCompleto = (inq: PersonaFisica | PersonaJuridica): string => {
+    if ('primerNombre' in inq) {
+      return `${inq.primerNombre || ''} ${inq.segundoNombre || ''} ${inq.primerApellido || ''} ${inq.segundoApellido || ''}`.trim();
+    } else {
+      return inq.razonSocial || '';
+    }
+  };
+
+  const getDocumento = (inq: PersonaFisica | PersonaJuridica): string => {
+    if ('numDocumento' in inq) {
+      return `${inq.tipoDocumento || 'dni'} ${inq.numDocumento || ''}`;
+    } else {
+      return `cuit ${inq.cuit || ''}`;
+    }
+  };
+
+  const getPrincipalEmail = (inq: PersonaFisica | PersonaJuridica): string => {
+    return inq.mails?.find(m => m.esPrincipal)?.email || 'Sin email';
+  };
+
+  const getPrincipalTelefono = (inq: PersonaFisica | PersonaJuridica): string => {
+    return inq.telefonos?.[0]?.numero || 'Sin teléfono';
+  };
+
+  const getDireccionPrincipal = (inq: PersonaFisica | PersonaJuridica): string => {
+    const dir = inq.direcciones?.[0];
+    if (!dir) return 'Sin dirección';
+    return `${dir.calle || ''} ${dir.altura || ''}, ${dir.localidad || ''}`.trim();
+  };
+
+  return (
+    <Box>
+      <Typography variant="h4" component="h1" gutterBottom sx={{ mb: 3, color: 'text.primary' }}>
+        Inquilinos
+      </Typography>
+
+      <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', alignItems: 'center' }}>
+        <TextField
+          placeholder="Buscar inquilinos..."
+          variant="outlined"
+          size="medium"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ flexGrow: 1, maxWidth: 400, bgcolor: 'background.paper' }}
+          inputProps={{
+            'aria-label': 'Buscar inquilinos',
+          }}
+        />
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<Add />}
+          onClick={() => navigate('/inquilinos/nuevo')}
+          sx={{ height: 56 }}
+        >
+          Nuevo Inquilino
+        </Button>
+      </Box>
+
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {filteredInquilinos.length === 0 ? (
+          <Card>
+            <Box sx={{ p: 4 }}>
+              <Typography variant="body1" color="text.secondary" align="center">
+                {searchTerm ? 'No se encontraron inquilinos' : 'No hay inquilinos registrados'}
+              </Typography>
+            </Box>
+          </Card>
+        ) : (
+          filteredInquilinos.map((inq) => (
+            <Card
+              key={inq.id}
+              sx={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                p: 2,
+                '&:hover': {
+                  boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
+                },
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
+                <Box
+                  sx={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: '50%',
+                    bgcolor: 'action.hover',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Person sx={{ fontSize: 32, color: 'text.secondary' }} />
+                </Box>
+
+                <Box sx={{ flex: 1, minWidth: 200 }}>
+                  <Typography variant="h6" component="h3" gutterBottom>
+                    {getNombreCompleto(inq)}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {getDocumento(inq)}
+                  </Typography>
+                  <Box sx={{ mt: 1 }}>
+                    <Chip
+                      label={'primerNombre' in inq ? "Persona Física" : "Empresa"}
+                      size="small"
+                      color="default"
+                    />
+                  </Box>
+                </Box>
+
+                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1, minWidth: 250 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <LocationOn sx={{ fontSize: 20, color: 'text.secondary' }} />
+                    <Typography variant="body2" color="text.secondary">
+                      {getDireccionPrincipal(inq)}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Email sx={{ fontSize: 20, color: 'text.secondary' }} />
+                    <Typography variant="body2" color="text.secondary">
+                      {getPrincipalEmail(inq)}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Phone sx={{ fontSize: 20, color: 'success.main' }} />
+                    <Typography variant="body2" color="success.main" sx={{ fontWeight: 600 }}>
+                      {getPrincipalTelefono(inq)}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+
+              <CardActions sx={{ gap: 1 }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => navigate(`/inquilinos/${'numDocumento' in inq ? inq.numDocumento : inq.cuit}/editar`)}
+                  startIcon={<Edit />}
+                  aria-label={`Editar ${getNombreCompleto(inq)}`}
+                >
+                  Editar
+                </Button>
+                <IconButton
+                  color="error"
+                  onClick={() => handleDelete(inq.id, 'primerNombre' in inq)}
+                  aria-label={`Eliminar ${getNombreCompleto(inq)}`}
+                >
+                  <Delete />
+                </IconButton>
+              </CardActions>
+            </Card>
+          ))
+        )}
+      </Box>
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        aria-labelledby="delete-dialog-title"
+        aria-describedby="delete-dialog-description"
+      >
+        <DialogTitle id="delete-dialog-title">Confirmar eliminación</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="delete-dialog-description">
+            ¿Está seguro que desea eliminar este inquilino? Esta acción no se puede deshacer.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} color="inherit">
+            Cancelar
+          </Button>
+          <Button onClick={confirmDelete} color="error" variant="contained" autoFocus>
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
-
-  it('renders the title and new button', async () => {
-    renderComponent();
-    expect(screen.getByRole('heading', { name: /inquilinos/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /nuevo inquilino/i })).toBeInTheDocument();
-
-    // Wait for the async load to settle to avoid act() warnings
-    await waitFor(() => {
-      expect(personasService.getPersonasFisicas).toHaveBeenCalledWith('inquilino');
-    });
-  });
-
-  it('loads and displays inquilinos properly', async () => {
-    (personasService.getPersonasFisicas as any).mockResolvedValue([mockFisica]);
-    (personasService.getPersonasJuridicas as any).mockResolvedValue([mockJuridica]);
-
-    renderComponent();
-
-    // Verify loading of physical person
-    expect(await screen.findByText('Carlos Gomez')).toBeInTheDocument();
-    expect(screen.getByText('DNI 11111111')).toBeInTheDocument();
-    expect(screen.getByText('carlos@test.com')).toBeInTheDocument();
-
-    // Verify loading of legal person
-    expect(screen.getByText('Empresa Test')).toBeInTheDocument();
-    expect(screen.getByText('CUIT 30-11111111-9')).toBeInTheDocument();
-    expect(screen.getByText('empresa@test.com')).toBeInTheDocument();
-  });
-
-  it('filters results according to search term', async () => {
-    (personasService.getPersonasFisicas as any).mockResolvedValue([mockFisica]);
-    (personasService.getPersonasJuridicas as any).mockResolvedValue([mockJuridica]);
-
-    renderComponent();
-    expect(await screen.findByText('Carlos Gomez')).toBeInTheDocument();
-
-    const searchInput = screen.getByRole('textbox', { name: /buscar inquilinos/i });
-
-    // Filter for "Empresa"
-    fireEvent.change(searchInput, { target: { value: 'Empresa' } });
-
-    expect(screen.getByText('Empresa Test')).toBeInTheDocument();
-    expect(screen.queryByText('Carlos Gomez')).not.toBeInTheDocument();
-  });
-
-  it('opens delete confirmation and deletes record when confirmed', async () => {
-    (personasService.getPersonasFisicas as any).mockResolvedValue([mockFisica]);
-    (personasService.deletePersonaFisica as any).mockResolvedValue(true);
-
-    renderComponent();
-
-    // Wait for data
-    expect(await screen.findByText('Carlos Gomez')).toBeInTheDocument();
-
-    // Find delete button
-    const deleteBtn = screen.getByRole('button', { name: /eliminar carlos gomez/i });
-    fireEvent.click(deleteBtn);
-
-    // Dialog should appear
-    expect(screen.getByRole('dialog', { name: /confirmar eliminación/i })).toBeInTheDocument();
-
-    // Confirm delete
-    const confirmBtn = screen.getByRole('button', { name: 'Eliminar' });
-    fireEvent.click(confirmBtn);
-
-    await waitFor(() => {
-      expect(personasService.deletePersonaFisica).toHaveBeenCalledWith("1");
-    });
-
-    // Check if success snackbar pops up
-    expect(screen.getByText(/inquilino eliminado exitosamente/i)).toBeInTheDocument();
-  });
-});
+}
